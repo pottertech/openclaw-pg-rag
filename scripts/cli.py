@@ -134,7 +134,7 @@ def cmd_decode(args):
         print()
         print(f"Timestamp:      {datetime.fromtimestamp(timestamp)}")
         print(f"Unix Time:      {timestamp}")
-        print(f"Machine ID:     {machine}")
+        print(f"Machine ID:     {machine.hex() if hasattr(machine, 'hex') else machine.encode('latin-1').hex() if isinstance(machine, str) else machine.hex()}")
         print(f"Process ID:     {pid}")
         print(f"Counter:        {counter}")
         print()
