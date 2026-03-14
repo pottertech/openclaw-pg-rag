@@ -435,8 +435,8 @@ Documentation: https://github.com/pottertech/openclaw-pg-rag
     # Ingest command
     ingest_parser = subparsers.add_parser('ingest', help='Ingest documents')
     ingest_parser.add_argument('--folder', help='Process entire folder')
-    ingest_parser.add_argument('--file', help='Process single file')
-    ingest_parser.add_argument('--file-id', help='Google Drive file ID')
+    ingest_parser.add_argument('--file', help='Process single file (PDF, DOCX, PPTX, XLSX, HTML, MD, TXT)')
+    ingest_parser.add_argument('--types', default='pdf,docx,pptx,xlsx,html,md,txt', help='Comma-separated file types to process')
     ingest_parser.add_argument('--folder-id', default='d6q2qtr24teau8j24teg', help='Folder ID')
     
     # Query command
