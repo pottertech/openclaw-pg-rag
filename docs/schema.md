@@ -246,7 +246,31 @@ pg-rag update d6qb9cr24te02or24ttg --title "New"
 pg-rag delete d6qb9cr24te02or24ttg   # Delete
 ```
 
-**Why xid?**
-- Time-sortable (unlike UUID)
-- Distributed-safe (no coordination needed)
-- Compact (fits in URLs)
+**Why xid? Distributed Safety**
+
+**No coordination required** - Multiple agents can generate IDs independently without collisions:
+
+**xid Structure (12 bytes):**
+| Field | Size | Purpose |
+|-------|------|---------|
+| **Timestamp** | 4 bytes | Unix time (seconds) - ensures sortability |
+| **Machine ID** | 3 bytes | Unique per host (MAC-derived) |
+| **Process ID** | 2 bytes | Unique per process |
+| **Counter** | 3 bytes | Auto-increment per process |
+
+**Example:**
+- **Brodie** (machine: `62275c`, process: `3026`) generates: `d6qb9cr24te02or24ttg`
+- **Arty** (machine: `8f3a91`, process: `1845`) generates: `d6qb9cr24te0abcd1234`
+- **Both different** - no coordination needed!
+
+**Collision probability:** ~1 in 2^128 (effectively impossible)
+
+**Benefits for distributed RAG:**
+- ✅ **Brodie** can ingest documents independently
+- ✅ **Arty** can ingest documents independently  
+- ✅ No central ID server needed
+- ✅ No locking/coordination required
+- ✅ Time-sortable (useful for "recent documents")
+- ✅ Compact (20 chars vs UUID's 36)
+
+**See also:** `pg-rag decode DOC_ID` to inspect xid components
