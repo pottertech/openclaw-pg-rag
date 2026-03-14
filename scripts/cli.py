@@ -154,6 +154,217 @@ def cmd_get(args):
     conn.close()
     return 0
 
+def cmd_list(args):
+    """List documents with metadata."""
+    import psycopg2
+    
+    conn = psycopg2.connect(
+        dbname=args.database or 'pg_vault_rag',
+        user=args.user or 'skippotter',
+        host=args.host or 'localhost'
+    )
+    cur = conn.cursor()
+    
+    # Build query
+    if args.folder:
+        cur.execute(
+            "SELECT document_id, title, source_uri, created_at, metadata_json FROM rag_documents WHERE folder_id = %s ORDER BY created_at DESC LIMIT %s",
+            (args.folder, args.limit)
+        )
+    elif args.recent:
+        cur.execute(
+            "SELECT document_id, title, source_uri, created_at, metadata_json FROM rag_documents ORDER BY created_at DESC LIMIT %s",
+            (args.limit,)
+        )
+    else:
+        cur.execute(
+            "SELECT document_id, title, source_uri, created_at, metadata_json FROM rag_documents ORDER BY title LIMIT %s",
+            (args.limit,)
+        )
+    
+    results = cur.fetchall()
+    
+    if args.json:
+        output = []
+        for r in results:
+            output.append({
+                "document_id": r[0],
+                "title": r[1],
+                "source_uri": r[2],
+                "created_at": str(r[3]),
+                "metadata": r[4]
+            })
+        print(json.dumps(output, indent=2))
+    else:
+        print(f"Found {len(results)} documents:")
+        print(f"{'ID':<25} {'Title':<40} {'Created':<20}")
+        print("-" * 90)
+        for r in results:
+            title = r[1][:38] if r[1] else 'Untitled'
+            created = str(r[3])[:19] if r[3] else 'N/A'
+            print(f"{r[0]:<25} {title:<40} {created:<20}")
+    
+    cur.close()
+    conn.close()
+    return 0
+
+def cmd_show(args):
+    """Show metadata for a document."""
+    import psycopg2
+    
+    conn = psycopg2.connect(
+        dbname=args.database or 'pg_vault_rag',
+        user=args.user or 'skippotter',
+        host=args.host or 'localhost'
+    )
+    cur = conn.cursor()
+    
+    cur.execute(
+        "SELECT document_id, title, source_uri, source_type, mime_type, folder_id, created_at, updated_at, indexed_at, metadata_json FROM rag_documents WHERE document_id = %s",
+        (args.document_id,)
+    )
+    
+    result = cur.fetchone()
+    if not result:
+        print(f"Document not found: {args.document_id}")
+        return 1
+    
+    print(f"=== Document Metadata ===")
+    print(f"ID:            {result[0]}")
+    print(f"Title:         {result[1]}")
+    print(f"Source:        {result[2]}")
+    print(f"Source Type:   {result[3]}")
+    print(f"MIME Type:     {result[4]}")
+    print(f"Folder ID:     {result[5]}")
+    print(f"Created:       {result[6]}")
+    print(f"Updated:       {result[7]}")
+    print(f"Indexed:       {result[8]}")
+    print(f"Metadata:      {json.dumps(result[9], indent=2) if result[9] else '{}'}")
+    
+    cur.close()
+    conn.close()
+    return 0
+
+def cmd_update(args):
+    """Update document metadata."""
+    import psycopg2
+    
+    conn = psycopg2.connect(
+        dbname=args.database or 'pg_vault_rag',
+        user=args.user or 'skippotter',
+        host=args.host or 'localhost'
+    )
+    cur = conn.cursor()
+    
+    # Build update
+    updates = []
+    params = []
+    
+    if args.title:
+        updates.append("title = %s")
+        params.append(args.title)
+    if args.metadata:
+        updates.append("metadata_json = %s")
+        params.append(json.dumps(json.loads(args.metadata)))
+    if args.folder:
+        updates.append("folder_id = %s")
+        params.append(args.folder)
+    
+    if not updates:
+        print("Error: No fields to update. Use --title, --metadata, or --folder")
+        return 1
+    
+    params.append(args.document_id)
+    
+    sql = f"UPDATE rag_documents SET {', '.join(updates)}, updated_at = NOW() WHERE document_id = %s"
+    cur.execute(sql, params)
+    
+    conn.commit()
+    
+    if cur.rowcount > 0:
+        print(f"✅ Updated: {args.document_id}")
+    else:
+        print(f"❌ Document not found: {args.document_id}")
+    
+    cur.close()
+    conn.close()
+    return 0
+
+def cmd_delete(args):
+    """Delete document from RAG."""
+    import psycopg2
+    
+    conn = psycopg2.connect(
+        dbname=args.database or 'pg_vault_rag',
+        user=args.user or 'skippotter',
+        host=args.host or 'localhost'
+    )
+    cur = conn.cursor()
+    
+    if not args.force:
+        # Confirm
+        cur.execute("SELECT title FROM rag_documents WHERE document_id = %s", (args.document_id,))
+        result = cur.fetchone()
+        if not result:
+            print(f"Document not found: {args.document_id}")
+            return 1
+        print(f"Delete: {result[0]}")
+        print(f"ID: {args.document_id}")
+        confirm = input("Confirm delete? [y/N]: ")
+        if confirm.lower() != 'y':
+            print("Cancelled")
+            return 0
+    
+    # Delete (cascades to chunks via FK)
+    cur.execute("DELETE FROM rag_documents WHERE document_id = %s", (args.document_id,))
+    conn.commit()
+    
+    if cur.rowcount > 0:
+        print(f"✅ Deleted: {args.document_id}")
+    else:
+        print(f"❌ Document not found: {args.document_id}")
+    
+    cur.close()
+    conn.close()
+    return 0
+    """Get full document content."""
+    import psycopg2
+    
+    conn = psycopg2.connect(
+        dbname=args.database or 'pg_vault_rag',
+        user=args.user or 'skippotter',
+        host=args.host or 'localhost'
+    )
+    cur = conn.cursor()
+    
+    cur.execute(
+        "SELECT document_id, title, raw_markdown, source_uri, metadata_json FROM rag_documents WHERE document_id = %s",
+        (args.document_id,)
+    )
+    
+    result = cur.fetchone()
+    if not result:
+        print(f"Document not found: {args.document_id}")
+        return 1
+    
+    if args.output:
+        # Save to file
+        with open(args.output, 'w') as f:
+            f.write(result[2])
+        print(f"Saved to: {args.output}")
+    else:
+        # Print to stdout
+        print(f"=== {result[1]} ===")
+        print(f"ID: {result[0]}")
+        print(f"Source: {result[3]}")
+        print(f"Metadata: {result[4]}")
+        print()
+        print(result[2][:5000])  # First 5000 chars
+    
+    cur.close()
+    conn.close()
+    return 0
+
 def main():
     parser = argparse.ArgumentParser(
         prog='pg-rag',
@@ -205,6 +416,41 @@ Documentation: https://github.com/pottertech/openclaw-pg-rag
     get_parser.add_argument('--user', default='skippotter')
     get_parser.add_argument('--host', default='localhost')
     
+    # List command
+    list_parser = subparsers.add_parser('list', help='List documents')
+    list_parser.add_argument('--folder', '-f', help='Filter by folder ID')
+    list_parser.add_argument('--recent', '-r', action='store_true', help='Sort by recent')
+    list_parser.add_argument('--limit', '-l', type=int, default=20, help='Limit results')
+    list_parser.add_argument('--json', action='store_true', help='JSON output')
+    list_parser.add_argument('--database', default='pg_vault_rag')
+    list_parser.add_argument('--user', default='skippotter')
+    list_parser.add_argument('--host', default='localhost')
+    
+    # Show command
+    show_parser = subparsers.add_parser('show', help='Show document metadata')
+    show_parser.add_argument('document_id', help='Document ID')
+    show_parser.add_argument('--database', default='pg_vault_rag')
+    show_parser.add_argument('--user', default='skippotter')
+    show_parser.add_argument('--host', default='localhost')
+    
+    # Update command
+    update_parser = subparsers.add_parser('update', help='Update document metadata')
+    update_parser.add_argument('document_id', help='Document ID')
+    update_parser.add_argument('--title', help='New title')
+    update_parser.add_argument('--metadata', help='JSON metadata string')
+    update_parser.add_argument('--folder', help='New folder ID')
+    update_parser.add_argument('--database', default='pg_vault_rag')
+    update_parser.add_argument('--user', default='skippotter')
+    update_parser.add_argument('--host', default='localhost')
+    
+    # Delete command
+    delete_parser = subparsers.add_parser('delete', help='Delete document')
+    delete_parser.add_argument('document_id', help='Document ID')
+    delete_parser.add_argument('--force', '-f', action='store_true', help='Skip confirmation')
+    delete_parser.add_argument('--database', default='pg_vault_rag')
+    delete_parser.add_argument('--user', default='skippotter')
+    delete_parser.add_argument('--host', default='localhost')
+    
     args = parser.parse_args()
     
     if not args.command:
@@ -216,6 +462,10 @@ Documentation: https://github.com/pottertech/openclaw-pg-rag
         'query': cmd_query,
         'status': cmd_status,
         'get': cmd_get,
+        'list': cmd_list,
+        'show': cmd_show,
+        'update': cmd_update,
+        'delete': cmd_delete,
     }
     
     return commands[args.command](args)
