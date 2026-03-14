@@ -115,6 +115,51 @@ def cmd_status(args):
     
     return 0
 
+def cmd_decode(args):
+    """Decode xid to extract metadata."""
+    import xid as xid_lib
+    from datetime import datetime
+    
+    try:
+        # Parse the xid
+        x = xid_lib.Xid(args.xid_string)
+        
+        # Extract components
+        timestamp = x.time()
+        machine = x.machine()
+        pid = x.pid()
+        counter = x.counter()
+        
+        print(f"=== xid Decode: {args.xid_string} ===")
+        print()
+        print(f"Timestamp:      {datetime.fromtimestamp(timestamp)}")
+        print(f"Unix Time:      {timestamp}")
+        print(f"Machine ID:     {machine}")
+        print(f"Process ID:     {pid}")
+        print(f"Counter:        {counter}")
+        print()
+        print(f"String:         {x.string()}")
+        print(f"Bytes:          {x.bytes().hex()}")
+        
+        if args.json:
+            import json
+            output = {
+                "xid": args.xid_string,
+                "timestamp": timestamp,
+                "datetime": datetime.fromtimestamp(timestamp).isoformat(),
+                "machine": machine,
+                "pid": pid,
+                "counter": counter
+            }
+            print()
+            print(json.dumps(output, indent=2))
+            
+    except Exception as e:
+        print(f"Error: Invalid xid - {e}")
+        return 1
+    
+    return 0
+
 def cmd_get(args):
     """Get full document content."""
     import psycopg2
@@ -408,6 +453,11 @@ Documentation: https://github.com/pottertech/openclaw-pg-rag
     status_parser.add_argument('--user', default='skippotter')
     status_parser.add_argument('--host', default='localhost')
     
+    # Decode command
+    decode_parser = subparsers.add_parser('decode', help='Decode xid to extract metadata')
+    decode_parser.add_argument('xid_string', help='xid to decode (e.g., d6qb9cr24te02or24ttg)')
+    decode_parser.add_argument('--json', action='store_true', help='JSON output')
+    
     # Get command
     get_parser = subparsers.add_parser('get', help='Get document content')
     get_parser.add_argument('document_id', help='Document ID')
@@ -461,6 +511,7 @@ Documentation: https://github.com/pottertech/openclaw-pg-rag
         'ingest': cmd_ingest,
         'query': cmd_query,
         'status': cmd_status,
+        'decode': cmd_decode,
         'get': cmd_get,
         'list': cmd_list,
         'show': cmd_show,
