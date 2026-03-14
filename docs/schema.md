@@ -214,3 +214,39 @@ SELECT * FROM rag_documents WHERE folder_id = 'd6q2qtr24teau8j24teg';
 SELECT title, created_at FROM rag_documents 
 ORDER BY created_at DESC LIMIT 10;
 ```
+
+## Document IDs (xid)
+
+**Format:** [xid](https://github.com/rs/xid) - 20-character unique identifier
+
+**Example:** `d6qb9cr24te02or24ttg`
+
+**Properties:**
+- Sortable by creation time (first 4 chars = timestamp)
+- Collision-resistant (machine ID + process ID + counter)
+- URL-safe (base32 encoding, no special chars)
+- Shorter than UUID (20 vs 36 characters)
+
+**Generation:**
+```python
+import xid
+doc_id = str(xid.Xid())  # "d6qb9cr24te02or24ttg"
+```
+
+**In CLI:**
+```bash
+# IDs generated automatically during ingest
+pg-rag ingest --file paper.pdf
+# Creates: document_id = "d6qb9cr24te02or24ttg"
+
+# Use ID for operations
+pg-rag get d6qb9cr24te02or24ttg      # Get content
+pg-rag show d6qb9cr24te02or24ttg     # Show metadata
+pg-rag update d6qb9cr24te02or24ttg --title "New"
+pg-rag delete d6qb9cr24te02or24ttg   # Delete
+```
+
+**Why xid?**
+- Time-sortable (unlike UUID)
+- Distributed-safe (no coordination needed)
+- Compact (fits in URLs)
