@@ -121,8 +121,8 @@ def cmd_decode(args):
     from datetime import datetime
     
     try:
-        # Parse the xid
-        x = xid_lib.Xid(args.xid_string)
+        # Parse the xid from string
+        x = xid_lib.Xid.from_string(args.xid_string)
         
         # Extract components
         timestamp = x.time()
@@ -139,7 +139,10 @@ def cmd_decode(args):
         print(f"Counter:        {counter}")
         print()
         print(f"String:         {x.string()}")
-        print(f"Bytes:          {x.bytes().hex()}")
+        try:
+            print(f"Bytes:          {x.bytes().encode('latin-1').hex()}")
+        except:
+            print(f"Bytes:          {repr(x.bytes())}")
         
         if args.json:
             import json
