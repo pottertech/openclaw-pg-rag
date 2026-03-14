@@ -20,7 +20,7 @@ dependencies = [
 dev = ["pytest>=7.0"]
 
 [project.scripts]
-pg-rag-ingest = "scripts.ingest:main"
+pg-rag = "scripts.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
