@@ -2,7 +2,7 @@
 -- Run this in psql or n8n PostgreSQL node
 
 -- Step 1: Create new tables if not exists
-CREATE TABLE IF NOT EXISTS documents (
+CREATE TABLE IF NOT EXISTS raw_documents (
     id SERIAL PRIMARY KEY,
     filename TEXT NOT NULL,
     file_path TEXT,
@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS documents (
 
 CREATE TABLE IF NOT EXISTS chunks (
     id SERIAL PRIMARY KEY,
-    document_id INTEGER REFERENCES documents(id) ON DELETE CASCADE,
+    document_id INTEGER REFERENCES raw_documents(id) ON DELETE CASCADE,
     chunk_index INTEGER,
     content TEXT NOT NULL,
     embedding VECTOR(1024),
@@ -55,8 +55,8 @@ BEGIN
             extracted_filename := COALESCE(old_record.metadata->>'filename', 'migrated_' || old_record.id || '.txt');
             extracted_path := COALESCE(old_record.metadata->>'file_path', '/migrated');
             
-            -- Insert into documents table
-            INSERT INTO documents (
+            -- Insert into raw_documents table
+            INSERT INTO raw_documents (
                 filename,
                 file_path,
                 file_type,
@@ -97,7 +97,7 @@ BEGIN
             
         END LOOP;
         
-        RAISE NOTICE 'Migration complete. Check documents and chunks tables.';
+        RAISE NOTICE 'Migration complete. Check raw_documents and chunks tables.';
     ELSE
         RAISE NOTICE 'Old table rag_documents not found. New tables created.';
     END IF;
@@ -105,12 +105,12 @@ END $$;
 
 -- Step 3: Verify migration
 SELECT 
-    'Documents' as table_name, 
+    'raw_documents' as table_name, 
     COUNT(*) as count 
-FROM documents
+FROM raw_documents
 UNION ALL
 SELECT 
-    'Chunks' as table_name, 
+    'chunks' as table_name, 
     COUNT(*) as count 
 FROM chunks
 UNION ALL
@@ -125,9 +125,6 @@ ALTER TABLE IF EXISTS rag_documents RENAME TO rag_documents_backup;
 -- Step 5: Rename chunks to rag_documents (replaces old table with new structure)
 ALTER TABLE chunks RENAME TO rag_documents;
 
--- Step 6: Update foreign key reference in documents table
--- Note: The document_id column now references documents(id)
--- This maintains the link between chunks and their parent documents
-
--- Step 7: Create view for backward compatibility if needed
--- CREATE OR REPLACE VIEW chunks AS SELECT * FROM rag_documents;
+-- Step 6: Update foreign key reference (now references raw_documents)
+-- Note: The document_id column now references raw_documents(id)
+-- This maintains the link between chunks and their parent raw_documents

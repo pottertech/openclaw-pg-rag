@@ -81,7 +81,7 @@ class DatabaseClient:
                     d.file_path,
                     1 - (r.embedding <=> %s::vector) as similarity
                 FROM rag_documents r
-                JOIN documents d ON r.document_id = d.id
+                JOIN raw_documents d ON r.document_id = d.id
                 WHERE 1 - (r.embedding <=> %s::vector) >= %s
                 ORDER BY r.embedding <=> %s::vector
                 LIMIT %s
@@ -129,12 +129,12 @@ class DatabaseClient:
         content: str,
         metadata: Optional[Dict] = None
     ) -> int:
-        """Insert document and return ID."""
+        """Insert document into raw_documents and return ID."""
         self.ensure_connection()
         
         with self._conn.cursor() as cur:
             cur.execute("""
-                INSERT INTO documents 
+                INSERT INTO raw_documents 
                 (filename, file_path, file_type, file_size, content, metadata)
                 VALUES (%s, %s, %s, %s, %s, %s)
                 RETURNING id
@@ -207,7 +207,7 @@ class DatabaseClient:
         self.ensure_connection()
         
         with self._conn.cursor() as cur:
-            cur.execute("SELECT COUNT(*) FROM documents")
+            cur.execute("SELECT COUNT(*) FROM raw_documents")
             doc_count = cur.fetchone()[0]
             
             cur.execute("SELECT COUNT(*) FROM rag_documents")
@@ -230,7 +230,7 @@ class DatabaseClient:
             # Delete chunks first (foreign key)
             cur.execute("DELETE FROM rag_documents WHERE document_id = %s", (document_id,))
             # Delete document
-            cur.execute("DELETE FROM documents WHERE id = %s", (document_id,))
+            cur.execute("DELETE FROM raw_documents WHERE id = %s", (document_id,))
         
         self._conn.commit()
         return True
