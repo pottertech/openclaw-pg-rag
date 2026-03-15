@@ -9,6 +9,7 @@ from .strategies import (
     ContextualStrategy,
     StrategyResult,
 )
+from .database import DatabaseClient
 
 __version__ = "1.0.0"
 __all__ = [
@@ -16,6 +17,7 @@ __all__ = [
     "QueryStrategy",
     "PgRAGConfig",
     "get_config",
+    "DatabaseClient",
     "FactualStrategy",
     "AnalyticalStrategy",
     "OpinionStrategy",

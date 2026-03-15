@@ -120,6 +120,58 @@ class DatabaseClient:
             
             return [dict(row) for row in cur.fetchall()]
     
+    def get_document(
+        self,
+        document_id: int
+    ) -> Optional[Dict[str, Any]]:
+        """Get full document content and metadata from raw_documents."""
+        self.ensure_connection()
+        
+        with self._conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT 
+                    id,
+                    filename,
+                    file_path,
+                    file_type,
+                    file_size,
+                    content,
+                    metadata,
+                    created_at
+                FROM raw_documents
+                WHERE id = %s
+            """, (document_id,))
+            
+            row = cur.fetchone()
+            return dict(row) if row else None
+    
+    def get_document_by_filename(
+        self,
+        filename: str
+    ) -> Optional[Dict[str, Any]]:
+        """Get full document by filename."""
+        self.ensure_connection()
+        
+        with self._conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT 
+                    id,
+                    filename,
+                    file_path,
+                    file_type,
+                    file_size,
+                    content,
+                    metadata,
+                    created_at
+                FROM raw_documents
+                WHERE filename = %s
+                ORDER BY created_at DESC
+                LIMIT 1
+            """, (filename,))
+            
+            row = cur.fetchone()
+            return dict(row) if row else None
+    
     def insert_document(
         self,
         filename: str,
