@@ -67,6 +67,66 @@ pg-rag status
 - `rag_document_chunks` - Chunked content
 - `rag_folders` - Folder registry
 
+## Email Documents (Markdown → HTML)
+
+When retrieving documents for email, always convert Markdown to HTML first:
+
+```python
+import psycopg2
+import markdown
+import smtplib
+import ssl
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+# 1. Retrieve document from pg-rag
+conn = psycopg2.connect('host=/tmp dbname=pg_vault_rag user=skippotter')
+cur = conn.cursor()
+cur.execute("SELECT title, raw_markdown FROM rag_documents WHERE title ILIKE %s", ("%chef cho%",))
+title, md_content = cur.fetchone()
+conn.close()
+
+# 2. Convert Markdown to HTML
+html_content = markdown.markdown(md_content, extensions=['tables', 'fenced_code'])
+
+# 3. Create styled HTML email
+html_body = f"""
+<html>
+<head>
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; }}
+        h1 {{ color: #333; border-bottom: 2px solid #e74c3c; }}
+        h2 {{ color: #e74c3c; margin-top: 30px; }}
+        h3 {{ color: #555; }}
+        ul {{ padding-left: 20px; }}
+        li {{ margin: 5px 0; }}
+        code {{ background: #f4f4f4; padding: 2px 5px; border-radius: 3px; }}
+        pre {{ background: #f4f4f4; padding: 10px; border-radius: 5px; overflow-x: auto; }}
+    </style>
+</head>
+<body>
+    {html_content}
+</body>
+</html>
+"""
+
+# 4. Send email
+msg = MIMEMultipart('alternative')
+msg['From'] = 'brodie.foxworth@pottersquill.com'
+msg['To'] = 'skip.potter.va@gmail.com'
+msg['Subject'] = title
+
+msg.attach(MIMEText(md_content[:2000] + "\n\n[Full content in HTML version]", 'plain'))
+msg.attach(MIMEText(html_body, 'html'))
+
+context = ssl.create_default_context()
+with smtplib.SMTP_SSL('mail.pottersquill.com', 465, context=context) as server:
+    server.login('brodie.foxworth@pottersquill.com', 'SMTP_PASSWORD')
+    server.send_message(msg)
+```
+
+**Rule:** Always convert Markdown → HTML before emailing documents from pg-rag.
+
 ## Examples
 
 ### Python API
