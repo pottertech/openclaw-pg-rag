@@ -113,7 +113,7 @@ def index_to_postgresql(doc_id, title, source_url, content, folder_id, mime_type
         import psycopg2
         
         conn = psycopg2.connect(
-            dbname='pg_vault_rag',
+            dbname='openclaw_pg_rag',
             user='skippotter',
             host='localhost'
         )

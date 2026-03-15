@@ -91,10 +91,10 @@ CREATE INDEX idx_rag_folders_status ON rag_folders(status);
 
 ```sql
 -- Create database
-CREATE DATABASE pg_vault_rag;
+CREATE DATABASE openclaw_pg_rag;
 
 -- Connect to database
-\c pg_vault_rag
+\c openclaw_pg_rag
 
 -- Enable pgvector
 CREATE EXTENSION IF NOT EXISTS vector;

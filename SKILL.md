@@ -60,7 +60,7 @@ pg-rag status
 
 ## Database
 
-**Default:** `pg_vault_rag` on localhost
+**Default:** `openclaw_pg_rag` on localhost
 
 **Tables:**
 - `rag_documents` - Document storage
@@ -80,7 +80,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 # 1. Retrieve document from pg-rag
-conn = psycopg2.connect('host=/tmp dbname=pg_vault_rag user=skippotter')
+conn = psycopg2.connect('host=/tmp dbname=openclaw_pg_rag user=skippotter')
 cur = conn.cursor()
 cur.execute("SELECT title, raw_markdown FROM rag_documents WHERE title ILIKE %s", ("%chef cho%",))
 title, md_content = cur.fetchone()
@@ -147,7 +147,7 @@ process_single_pdf(
 import psycopg2
 
 conn = psycopg2.connect(
-    dbname='pg_vault_rag',
+    dbname='openclaw_pg_rag',
     user='skippotter',
     host='localhost'
 )

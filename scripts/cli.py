@@ -38,7 +38,7 @@ def cmd_query(args):
     import psycopg2
     
     conn = psycopg2.connect(
-        dbname=args.database or 'pg_vault_rag',
+        dbname=args.database or 'openclaw_pg_rag',
         user=args.user or 'skippotter',
         host=args.host or 'localhost'
     )
@@ -88,7 +88,7 @@ def cmd_status(args):
     import psycopg2
     
     conn = psycopg2.connect(
-        dbname=args.database or 'pg_vault_rag',
+        dbname=args.database or 'openclaw_pg_rag',
         user=args.user or 'skippotter',
         host=args.host or 'localhost'
     )
@@ -108,7 +108,7 @@ def cmd_status(args):
     conn.close()
     
     print("=== OpenClaw pg-RAG Status ===")
-    print(f"Database: {args.database or 'pg_vault_rag'}")
+    print(f"Database: {args.database or 'openclaw_pg_rag'}")
     print(f"Total documents: {total}")
     print(f"Folders: {folders}")
     print(f"Last ingest: {last}")
@@ -168,7 +168,7 @@ def cmd_get(args):
     import psycopg2
     
     conn = psycopg2.connect(
-        dbname=args.database or 'pg_vault_rag',
+        dbname=args.database or 'openclaw_pg_rag',
         user=args.user or 'skippotter',
         host=args.host or 'localhost'
     )
@@ -207,7 +207,7 @@ def cmd_list(args):
     import psycopg2
     
     conn = psycopg2.connect(
-        dbname=args.database or 'pg_vault_rag',
+        dbname=args.database or 'openclaw_pg_rag',
         user=args.user or 'skippotter',
         host=args.host or 'localhost'
     )
@@ -261,7 +261,7 @@ def cmd_show(args):
     import psycopg2
     
     conn = psycopg2.connect(
-        dbname=args.database or 'pg_vault_rag',
+        dbname=args.database or 'openclaw_pg_rag',
         user=args.user or 'skippotter',
         host=args.host or 'localhost'
     )
@@ -298,7 +298,7 @@ def cmd_update(args):
     import psycopg2
     
     conn = psycopg2.connect(
-        dbname=args.database or 'pg_vault_rag',
+        dbname=args.database or 'openclaw_pg_rag',
         user=args.user or 'skippotter',
         host=args.host or 'localhost'
     )
@@ -343,7 +343,7 @@ def cmd_delete(args):
     import psycopg2
     
     conn = psycopg2.connect(
-        dbname=args.database or 'pg_vault_rag',
+        dbname=args.database or 'openclaw_pg_rag',
         user=args.user or 'skippotter',
         host=args.host or 'localhost'
     )
@@ -379,7 +379,7 @@ def cmd_delete(args):
     import psycopg2
     
     conn = psycopg2.connect(
-        dbname=args.database or 'pg_vault_rag',
+        dbname=args.database or 'openclaw_pg_rag',
         user=args.user or 'skippotter',
         host=args.host or 'localhost'
     )
@@ -446,13 +446,13 @@ Documentation: https://github.com/pottertech/openclaw-pg-rag
     query_parser.add_argument('--sql', help='Raw SQL query')
     query_parser.add_argument('--limit', '-l', type=int, default=20, help='Result limit')
     query_parser.add_argument('--json', action='store_true', help='JSON output')
-    query_parser.add_argument('--database', default='pg_vault_rag', help='Database name')
+    query_parser.add_argument('--database', default='openclaw_pg_rag', help='Database name')
     query_parser.add_argument('--user', default='skippotter', help='DB user')
     query_parser.add_argument('--host', default='localhost', help='DB host')
     
     # Status command
     status_parser = subparsers.add_parser('status', help='Show system status')
-    status_parser.add_argument('--database', default='pg_vault_rag')
+    status_parser.add_argument('--database', default='openclaw_pg_rag')
     status_parser.add_argument('--user', default='skippotter')
     status_parser.add_argument('--host', default='localhost')
     
@@ -465,7 +465,7 @@ Documentation: https://github.com/pottertech/openclaw-pg-rag
     get_parser = subparsers.add_parser('get', help='Get document content')
     get_parser.add_argument('document_id', help='Document ID')
     get_parser.add_argument('--output', '-o', help='Output file')
-    get_parser.add_argument('--database', default='pg_vault_rag')
+    get_parser.add_argument('--database', default='openclaw_pg_rag')
     get_parser.add_argument('--user', default='skippotter')
     get_parser.add_argument('--host', default='localhost')
     
@@ -475,14 +475,14 @@ Documentation: https://github.com/pottertech/openclaw-pg-rag
     list_parser.add_argument('--recent', '-r', action='store_true', help='Sort by recent')
     list_parser.add_argument('--limit', '-l', type=int, default=20, help='Limit results')
     list_parser.add_argument('--json', action='store_true', help='JSON output')
-    list_parser.add_argument('--database', default='pg_vault_rag')
+    list_parser.add_argument('--database', default='openclaw_pg_rag')
     list_parser.add_argument('--user', default='skippotter')
     list_parser.add_argument('--host', default='localhost')
     
     # Show command
     show_parser = subparsers.add_parser('show', help='Show document metadata')
     show_parser.add_argument('document_id', help='Document ID')
-    show_parser.add_argument('--database', default='pg_vault_rag')
+    show_parser.add_argument('--database', default='openclaw_pg_rag')
     show_parser.add_argument('--user', default='skippotter')
     show_parser.add_argument('--host', default='localhost')
     
@@ -492,7 +492,7 @@ Documentation: https://github.com/pottertech/openclaw-pg-rag
     update_parser.add_argument('--title', help='New title')
     update_parser.add_argument('--metadata', help='JSON metadata string')
     update_parser.add_argument('--folder', help='New folder ID')
-    update_parser.add_argument('--database', default='pg_vault_rag')
+    update_parser.add_argument('--database', default='openclaw_pg_rag')
     update_parser.add_argument('--user', default='skippotter')
     update_parser.add_argument('--host', default='localhost')
     
@@ -500,7 +500,7 @@ Documentation: https://github.com/pottertech/openclaw-pg-rag
     delete_parser = subparsers.add_parser('delete', help='Delete document')
     delete_parser.add_argument('document_id', help='Document ID')
     delete_parser.add_argument('--force', '-f', action='store_true', help='Skip confirmation')
-    delete_parser.add_argument('--database', default='pg_vault_rag')
+    delete_parser.add_argument('--database', default='openclaw_pg_rag')
     delete_parser.add_argument('--user', default='skippotter')
     delete_parser.add_argument('--host', default='localhost')
     

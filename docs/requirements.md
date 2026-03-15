@@ -42,7 +42,7 @@ sudo -u postgres psql -d your_database -c "CREATE EXTENSION IF NOT EXISTS vector
 psql --version  # Should show 18.x
 
 # Check pgvector
-psql -d pg_vault_rag -c "SELECT * FROM pg_extension WHERE extname = 'vector';"
+psql -d openclaw_pg_rag -c "SELECT * FROM pg_extension WHERE extname = 'vector';"
 ```
 
 ## Database Configuration
@@ -50,7 +50,7 @@ psql -d pg_vault_rag -c "SELECT * FROM pg_extension WHERE extname = 'vector';"
 **Required:**
 - PostgreSQL 18+
 - pgvector extension
-- Database: `pg_vault_rag`
+- Database: `openclaw_pg_rag`
 - User: `skippotter` (or your user)
 
 **Vector Dimensions:** 1024 (for bge-m3 embeddings)
@@ -69,7 +69,7 @@ pip install psycopg2-binary docling xid requests
 **Default Connection:**
 - Host: `localhost`
 - Port: `5432`
-- Database: `pg_vault_rag`
+- Database: `openclaw_pg_rag`
 
 **Tailscale (for distributed agents):**
 - Host: `100.99.127.10`

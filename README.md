@@ -30,7 +30,7 @@ sudo apt-get install postgresql-18 postgresql-18-pgvector
 ### 2. Enable pgvector
 
 ```bash
-psql -d pg_vault_rag -c "CREATE EXTENSION IF NOT EXISTS vector;"
+psql -d openclaw_pg_rag -c "CREATE EXTENSION IF NOT EXISTS vector;"
 ```
 
 ### 3. Install pg-RAG
@@ -48,7 +48,7 @@ Docling Converter
     ↓
 Markdown + YAML Front Matter
     ↓
-PostgreSQL 18 (pg_vault_rag database)
+PostgreSQL 18 (openclaw_pg_rag database)
     ↓
 Query via SQL / Semantic Search (pgvector)
 ```
@@ -92,7 +92,7 @@ pg-rag get DOC_ID --output file.md       # Save to file
 **Database connection:**
 - Host: `100.99.127.10` (Tailscale) or `localhost`
 - Port: `5432`
-- Database: `pg_vault_rag`
+- Database: `openclaw_pg_rag`
 
 See `docs/requirements.md` for detailed setup.
 
@@ -111,7 +111,7 @@ Docling Converter
     ↓
 Markdown + YAML Front Matter
     ↓
-PostgreSQL (pg_vault_rag database)
+PostgreSQL (openclaw_pg_rag database)
     ↓
 Query via SQL / Semantic Search
 ```
