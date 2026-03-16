@@ -2,9 +2,14 @@
 
 PostgreSQL-based RAG (Retrieval-Augmented Generation) system for OpenClaw.
 
-## Requirements
+## ⚠️ Requirements
 
-- **PostgreSQL 18+** with **pgvector** extension
+**CRITICAL: PostgreSQL 18+ REQUIRED**
+
+This package requires PostgreSQL version 18 or higher. Earlier versions (14, 15, 16, 17) are NOT supported.
+
+- **PostgreSQL 18+** (REQUIRED - no exceptions)
+- **pgvector** extension
 - Python 3.10+
 - Docling for document conversion
 

@@ -11,7 +11,7 @@ import json
 class PgRAGConfig:
     """Configuration for pg-rag."""
     
-    pg_host: str = field(default_factory=lambda: os.getenv("PG_HOST", "100.99.127.10"))
+    pg_host: str = field(default_factory=lambda: os.getenv("PG_HOST", "localhost"))
     pg_port: int = field(default_factory=lambda: int(os.getenv("PG_PORT", "5432")))
     pg_database: str = field(default_factory=lambda: os.getenv("PG_DATABASE", "openclaw_pg_rag"))
     pg_user: str = field(default_factory=lambda: os.getenv("PG_USER", "openclaw"))
