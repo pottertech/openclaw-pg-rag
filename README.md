@@ -75,6 +75,26 @@ Query via SQL / Semantic Search (pgvector)
 ### rag_folders
 - folder registry for tracking
 
+## Query Types
+
+pg-RAG supports **4 query strategies** for different information needs:
+
+| Strategy | Best For | Example Queries |
+|----------|----------|-----------------|
+| **Factual** | Specific facts, definitions, exact data | "What is OAuth 2.0?", "How many calories in chicken?" |
+| **Analytical** | Analysis, comparison, comprehensive review | "Compare Python vs JavaScript", "Analyze CMMC requirements" |
+| **Opinion** | Pros/cons, recommendations, best practices | "What are the best practices for API security?" |
+| **Contextual** | Follow-up questions, personal context | "What did we decide about the database schema?" |
+
+### How It Works
+
+The system automatically classifies your query and applies the appropriate retrieval strategy:
+
+- **Factual** → Precision-focused search with exact matching
+- **Analytical** → Comprehensive coverage with sub-question decomposition
+- **Opinion** → Diverse perspectives retrieval from multiple sources
+- **Contextual** → User context integration with conversation history
+
 ## CLI Commands
 
 ```bash
