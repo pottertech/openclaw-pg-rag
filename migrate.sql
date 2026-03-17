@@ -1,130 +1,109 @@
--- Migration: pg-vault-rag (old) → openclaw-pg-rag (new)
--- Run this in psql or n8n PostgreSQL node
+-- OpenClaw pg-RAG Schema
+-- Creates the correct tables for the pg-rag CLI
+-- Run: psql -d openclaw_pg_rag -f migrate.sql
 
--- Step 1: Create new tables if not exists
-CREATE TABLE IF NOT EXISTS raw_documents (
-    id SERIAL PRIMARY KEY,
-    filename TEXT NOT NULL,
-    file_path TEXT,
-    file_type TEXT,
-    file_size INTEGER,
+-- Enable pgvector extension
+CREATE EXTENSION IF NOT EXISTS vector;
+
+-- Create rag_folders table first (referenced by rag_documents)
+CREATE TABLE IF NOT EXISTS rag_folders (
+    id BIGSERIAL PRIMARY KEY,
+    folder_id TEXT UNIQUE NOT NULL,
+    location TEXT NOT NULL,
+    location_type TEXT DEFAULT 'google-drive',
+    status TEXT DEFAULT 'active',
+    auto_ingest BOOLEAN DEFAULT false,
+    min_age_hours INTEGER DEFAULT 24,
+    min_stable_hours INTEGER DEFAULT 4,
+    last_scan TIMESTAMP WITH TIME ZONE,
+    last_scan_count INTEGER,
+    last_scan_files INTEGER,
+    registered_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    owner TEXT DEFAULT 'skip',
+    shared_with TEXT[] DEFAULT ARRAY['brodie', 'arty'],
+    metadata JSONB DEFAULT '{}',
+    notes TEXT
+);
+
+-- Create rag_documents table
+CREATE TABLE IF NOT EXISTS rag_documents (
+    id BIGSERIAL PRIMARY KEY,
+    document_id TEXT UNIQUE NOT NULL,
+    title TEXT NOT NULL,
+    source_uri TEXT,
+    source_type TEXT DEFAULT 'google-drive',
+    mime_type TEXT,
+    checksum TEXT,
+    raw_markdown TEXT,
     content TEXT,
-    metadata JSONB DEFAULT '{}',
-    created_at TIMESTAMP DEFAULT NOW()
+    metadata_json JSONB DEFAULT '{}',
+    folder_id TEXT REFERENCES rag_folders(folder_id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    indexed_at TIMESTAMP WITH TIME ZONE
 );
 
-CREATE TABLE IF NOT EXISTS chunks (
-    id SERIAL PRIMARY KEY,
-    document_id INTEGER REFERENCES raw_documents(id) ON DELETE CASCADE,
-    chunk_index INTEGER,
-    content TEXT NOT NULL,
+-- Create rag_document_chunks table
+CREATE TABLE IF NOT EXISTS rag_document_chunks (
+    id BIGSERIAL PRIMARY KEY,
+    document_id TEXT NOT NULL REFERENCES rag_documents(document_id) ON DELETE CASCADE,
+    chunk_index INTEGER NOT NULL,
+    chunk_text TEXT NOT NULL,
+    section_title TEXT,
+    page_number INTEGER,
     embedding VECTOR(1024),
-    metadata JSONB DEFAULT '{}',
-    created_at TIMESTAMP DEFAULT NOW()
+    metadata_json JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_chunks_document ON chunks(document_id);
-CREATE INDEX IF NOT EXISTS idx_chunks_embedding ON chunks USING ivfflat (embedding vector_cosine_ops);
+-- Create indexes for performance
+CREATE INDEX IF NOT EXISTS idx_documents_document_id ON rag_documents(document_id);
+CREATE INDEX IF NOT EXISTS idx_documents_folder ON rag_documents(folder_id);
+CREATE INDEX IF NOT EXISTS idx_documents_created ON rag_documents(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_documents_source ON rag_documents(source_type);
+CREATE INDEX IF NOT EXISTS idx_documents_fts ON rag_documents 
+    USING gin(to_tsvector('english', COALESCE(raw_markdown, '') || ' ' || COALESCE(title, '')));
 
--- Step 2: Migrate data from old rag_documents table
--- This creates one document entry per unique source file
--- and links all chunks to it
+CREATE INDEX IF NOT EXISTS idx_chunks_document_id ON rag_document_chunks(document_id);
+CREATE INDEX IF NOT EXISTS idx_chunks_embedding ON rag_document_chunks 
+    USING ivfflat (embedding vector_cosine_ops);
 
-DO $$
-DECLARE
-    old_record RECORD;
-    new_doc_id INTEGER;
-    extracted_filename TEXT;
-    extracted_path TEXT;
+-- Create trigger for updated_at
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
 BEGIN
-    -- Check if old table exists
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'rag_documents') THEN
-        
-        -- Migrate each unique document
-        FOR old_record IN 
-            SELECT DISTINCT ON (COALESCE(metadata->>'filename', 'unknown')) 
-                id,
-                content,
-                embedding,
-                metadata,
-                created_at
-            FROM rag_documents
-            ORDER BY COALESCE(metadata->>'filename', 'unknown'), id
-        LOOP
-            -- Extract filename from metadata or use default
-            extracted_filename := COALESCE(old_record.metadata->>'filename', 'migrated_' || old_record.id || '.txt');
-            extracted_path := COALESCE(old_record.metadata->>'file_path', '/migrated');
-            
-            -- Insert into raw_documents table
-            INSERT INTO raw_documents (
-                filename,
-                file_path,
-                file_type,
-                file_size,
-                content,
-                metadata,
-                created_at
-            ) VALUES (
-                extracted_filename,
-                extracted_path,
-                COALESCE(old_record.metadata->>'file_type', 'text/plain'),
-                COALESCE((old_record.metadata->>'file_size')::INTEGER, LENGTH(old_record.content)),
-                old_record.content,  -- Store full content
-                old_record.metadata,
-                COALESCE(old_record.created_at, NOW())
-            )
-            RETURNING id INTO new_doc_id;
-            
-            -- Now insert all chunks for this document
-            INSERT INTO chunks (
-                document_id,
-                chunk_index,
-                content,
-                embedding,
-                metadata,
-                created_at
-            )
-            SELECT 
-                new_doc_id,
-                ROW_NUMBER() OVER (ORDER BY id) - 1 as chunk_index,
-                content,
-                embedding,
-                metadata,
-                created_at
-            FROM rag_documents
-            WHERE COALESCE(metadata->>'filename', 'unknown') = extracted_filename
-            ORDER BY id;
-            
-        END LOOP;
-        
-        RAISE NOTICE 'Migration complete. Check raw_documents and chunks tables.';
-    ELSE
-        RAISE NOTICE 'Old table rag_documents not found. New tables created.';
-    END IF;
-END $$;
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
 
--- Step 3: Verify migration
+DROP TRIGGER IF EXISTS update_rag_documents_updated_at ON rag_documents;
+CREATE TRIGGER update_rag_documents_updated_at
+    BEFORE UPDATE ON rag_documents
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Create folder_summary view
+CREATE OR REPLACE VIEW folder_summary AS
 SELECT 
-    'raw_documents' as table_name, 
-    COUNT(*) as count 
-FROM raw_documents
-UNION ALL
-SELECT 
-    'chunks' as table_name, 
-    COUNT(*) as count 
-FROM chunks
-UNION ALL
-SELECT 
-    'Old rag_documents' as table_name, 
-    COUNT(*) as count 
-FROM rag_documents;
+    f.folder_id,
+    f.location,
+    f.status,
+    f.last_scan,
+    COUNT(d.id) as document_count,
+    COUNT(d.id) FILTER (WHERE d.indexed_at IS NOT NULL) as indexed_count
+FROM rag_folders f
+LEFT JOIN rag_documents d ON f.folder_id = d.folder_id
+GROUP BY f.folder_id, f.location, f.status, f.last_scan;
 
--- Step 4: Rename old table to backup (preserves data)
-ALTER TABLE IF EXISTS rag_documents RENAME TO rag_documents_backup;
+-- Insert default folder if not exists
+INSERT INTO rag_folders (folder_id, location, location_type, status, notes)
+VALUES ('d6q2qtr24teau8j24teg', 'Google Drive /Files', 'google-drive', 'active', 'Default RAG folder')
+ON CONFLICT (folder_id) DO NOTHING;
 
--- Step 5: Rename chunks to rag_documents (replaces old table with new structure)
-ALTER TABLE chunks RENAME TO rag_documents;
-
--- Step 6: Update foreign key reference (now references raw_documents)
--- Note: The document_id column now references raw_documents(id)
--- This maintains the link between chunks and their parent raw_documents
+-- Verify setup
+SELECT 'Schema created successfully!' as status;
+SELECT COUNT(*) as folder_count FROM rag_folders;
+SELECT COUNT(*) as document_count FROM rag_documents;
+SELECT COUNT(*) as chunk_count FROM rag_document_chunks;
