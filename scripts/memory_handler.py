@@ -41,7 +41,7 @@ def load_config() -> Dict:
             'primary_backend': 'postgresql',
             'markdown_backup': True,
             'retention_days': 7,
-            'agent_id': 'arty',
+            'agent_id': 'default-agent',  # Changed from 'arty' for enterprise compliance
             'fallback_on_pgdb_down': True
         },
         'postgresql': {
