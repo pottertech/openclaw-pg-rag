@@ -170,15 +170,22 @@ class EnhancedRAGHandler(http.server.BaseHTTPRequestHandler):
             folder_id = data.get('folder_id')
             enable_expansion = data.get('expand_query', True)
             enable_hybrid = data.get('hybrid_search', True)
+            search_mode = data.get('search_mode', 'general')  # 'general' or 'ingredient'
             
             # Step 1: Classify
             classification = self._classify_query(query)
             
-            # Step 2: Expand
-            expanded_queries = self._expand_query(query) if enable_expansion else [query]
+            # Step 2: Expand query (if enabled and not ingredient search)
+            if search_mode == 'ingredient':
+                expanded_queries = [query]  # No expansion for ingredients
+            else:
+                expanded_queries = self._expand_query(query) if enable_expansion else [query]
             
-            # Step 3: Search
-            results = self._search(query, expanded_queries, folder_id, enable_hybrid)
+            # Step 3: Search with appropriate mode
+            if search_mode == 'ingredient':
+                results = self._search_ingredient(query, folder_id)
+            else:
+                results = self._search(query, expanded_queries, folder_id, enable_hybrid)
             
             # Step 4: Generate summary
             summary = self._generate_summary(query, results[:3])
@@ -186,8 +193,9 @@ class EnhancedRAGHandler(http.server.BaseHTTPRequestHandler):
             self._send_json({
                 "success": True,
                 "question": query,
+                "search_mode": search_mode,
                 "classification": classification,
-                "expanded_queries": expanded_queries,
+                "expanded_queries": expanded_queries if search_mode != 'ingredient' else [],
                 "folder_id": folder_id,
                 "results_count": len(results),
                 "summary": summary,
@@ -337,6 +345,105 @@ class EnhancedRAGHandler(http.server.BaseHTTPRequestHandler):
             summary += f"Results from {len(folders)} folder(s): {', '.join(folders[:3])}."
         
         return summary
+    
+    def _search_ingredient(self, ingredient: str, folder_id: Optional[str]) -> List[SearchResult]:
+        """Search for recipes containing specific ingredient (exact match optimized)."""
+        
+        conn = psycopg2.connect(**DB_CONFIG)
+        cur = conn.cursor()
+        
+        try:
+            results = []
+            seen_ids = set()
+            ingredient_lower = ingredient.lower()
+            
+            # Use ILIKE for exact ingredient matching with high priority
+            if folder_id:
+                cur.execute("""
+                    SELECT c.chunk_id, c.document_id, c.chunk_text, c.chunk_index,
+                           d.title, d.folder_id
+                    FROM rag_document_chunks c
+                    JOIN rag_documents d ON c.document_id = d.document_id
+                    WHERE d.folder_id = %s
+                    AND (
+                        LOWER(c.chunk_text) LIKE %s
+                        OR LOWER(d.title) LIKE %s
+                    )
+                    ORDER BY 
+                        CASE WHEN LOWER(d.title) LIKE %s THEN 1 ELSE 2 END,
+                        CASE WHEN LOWER(c.chunk_text) LIKE %s THEN 1 ELSE 2 END
+                    LIMIT 50
+                """, (folder_id, f'%\n{ingredient_lower}%', f'%{ingredient_lower}%', f'%{ingredient_lower}%', f'%\n{ingredient_lower}%'))
+            else:
+                cur.execute("""
+                    SELECT c.chunk_id, c.document_id, c.chunk_text, c.chunk_index,
+                           d.title, d.folder_id
+                    FROM rag_document_chunks c
+                    JOIN rag_documents d ON c.document_id = d.document_id
+                    WHERE LOWER(c.chunk_text) LIKE %s
+                       OR LOWER(d.title) LIKE %s
+                    ORDER BY 
+                        CASE WHEN LOWER(d.title) LIKE %s THEN 1 ELSE 2 END
+                    LIMIT 50
+                """, (f'%\n{ingredient_lower}%', f'%{ingredient_lower}%', f'%{ingredient_lower}%'))
+            
+            rows = cur.fetchall()
+            
+            for row in rows:
+                chunk_id, doc_id, content, chunk_idx, title, fid = row
+                
+                if chunk_id in seen_ids:
+                    continue
+                
+                content_lower = content.lower()
+                title_lower = (title or "").lower()
+                
+                # Calculate ingredient-specific score
+                score = 0.0
+                
+                # Exact match in content (high priority)
+                if ingredient_lower in content_lower:
+                    score += 2.0
+                    # Bonus if in ingredients list (line starting with -)
+                    lines = content_lower.split('\n')
+                    for line in lines:
+                        if line.strip().startswith('-') and ingredient_lower in line:
+                            score += 1.0  # In ingredients list
+                            break
+                
+                # Match in title (highest priority)
+                if ingredient_lower in title_lower:
+                    score += 3.0
+                
+                # Boost if word appears multiple times
+                count = content_lower.count(ingredient_lower)
+                score += min(count * 0.1, 0.5)  # Max 0.5 bonus for frequency
+                
+                # Penalize if only mentioned in passing (not in ingredients)
+                if count == 1 and not any(line.strip().startswith('-') and ingredient_lower in line for line in lines):
+                    score *= 0.5  # Reduce score for tangential mentions
+                
+                if score > 1.0:  # Higher threshold for ingredients
+                    seen_ids.add(chunk_id)
+                    results.append(SearchResult(
+                        chunk_id=chunk_id,
+                        document_id=doc_id,
+                        content=content,
+                        title=title or "Untitled",
+                        folder_id=fid or "unknown",
+                        chunk_index=chunk_idx,
+                        semantic_score=0.0,  # Not used for ingredient search
+                        keyword_score=score,
+                        final_score=score
+                    ))
+            
+            # Sort by score
+            results.sort(key=lambda x: x.final_score, reverse=True)
+            return results[:30]  # Return top 30 ingredient matches
+            
+        finally:
+            cur.close()
+            conn.close()
     
     def _handle_query(self):
         """Basic query handler."""
