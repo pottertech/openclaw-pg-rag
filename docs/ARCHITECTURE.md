@@ -17,39 +17,39 @@ USER QUERY
          │
          ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                    STAGE 1: INITIAL RETRIEVAL                  │
+│                    STAGE 1: INITIAL RETRIEVAL                   │
 │                                                                 │
-│  ┌──────────────┐     ┌──────────────┐     ┌──────────────┐   │
-│  │   BM25       │     │  Semantic    │     │   Combine    │   │
-│  │  (Keyword)   │  +  │  (bge-m3)    │  →  │   Scores     │   │
-│  └──────────────┘     └──────────────┘     └──────────────┘   │
-│        │                      │                    │           │
-│        │                      │                    │           │
-│        ▼                      ▼                    ▼           │
-│  PostgreSQL ◄──────────────────────────────────────┘           │
-│  (pgvector)                                                    │
-│    • rag_documents                                            │
-│    • rag_document_chunks                                      │
-└────────────────────────┬──────────────────────────────────────┘
+│  ┌──────────────┐     ┌──────────────┐     ┌──────────────┐     │
+│  │   BM25       │     │  Semantic    │     │   Combine    │     │
+│  │  (Keyword)   │  +  │  (bge-m3)    │  →  │   Scores     │     │
+│  └──────────────┘     └──────────────┘     └──────────────┘     │
+│        │                      │                    │            │
+│        │                      │                    │            │
+│        ▼                      ▼                    ▼            │
+│  PostgreSQL ◄──────────────────────────────────────┘            │
+│  (pgvector)                                                     │
+│    • rag_documents                                              │
+│    • rag_document_chunks                                        │
+└────────────────────────┬────────────────────────────────────--──┘
                          │
                          ▼
               Top 100 Results
                          │
                          ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                  STAGE 2: CROSS-ENCODER RERANK                   │
-│                                                                  │
+│                  STAGE 2: CROSS-ENCODER RERANK                  │
+│                                                                 │
 │  ┌──────────────────────────────────────────────────────────┐   │
-│  │  BGE-RERANKER-v2-m3 (Ollama)                              │   │
-│  │                                                           │   │
-│  │   Query: "chicken recipes"                                │   │
-│  │      +                                                    │   │
-│  │   Passage: "A delicious chicken recipe with herbs..."     │   │
-│  │      ↓                                                    │   │
-│  │   Cross-Encoder Score: 0.87                             │   │
-│  │                                                           │   │
-│  │   (vs. embedding similarity which scores: 0.72)          │   │
-│  └──────────────────────────────────────────────────────────┘   │
+│  │  BGE-RERANKER-v2-m3 (Ollama)                              │  │
+│  │                                                           │  │
+│  │   Query: "chicken recipes"                                │  │
+│  │      +                                                    │  │
+│  │   Passage: "A delicious chicken recipe with herbs..."     │  │
+│  │      ↓                                                    │  │
+│  │   Cross-Encoder Score: 0.87                               │  │
+│  │                                                           │  │
+│  │   (vs. embedding similarity which scores: 0.72)           │  │
+│  └──────────────────────────────────────────────────────────-┘  │
 │                         │
 │                         ▼
 │              Top 20 Re-ranked
@@ -60,19 +60,19 @@ USER QUERY
 └─────────────────────────┼────────────────────────────────────────┘
                           │
                           ▼
-┌─────────────────────────────────────────────────────────────────┐
+┌────────────────────────────────────────────────────────────────┐
 │                      STAGE 3: POST-PROCESSING                  │
-│                                                                  │
-│  ┌──────────────┐   ┌──────────────┐   ┌──────────────┐         │
-│  │   Intent     │   │   Summary    │   │   Return     │         │
-│  │ Classification│ → │  Generation  │ → │   Results    │         │
-│  └──────────────┘   └──────────────┘   └──────────────┘         │
+│                                                                │
+│  ┌───────────-───┐   ┌──────────────┐   ┌──────────────┐       │
+│  │   Intent      │   │   Summary    │   │   Return     │       │
+│  │ Classification│ → │  Generation  │ → │   Results    │       │
+│  └────────────-──┘   └──────────────┘   └──────────────┘       │
 │       │                    │                    │              │
 │       ▼                    ▼                    ▼              │
-│  "how_to"             "Found 5              JSON Response         │
-│  intent               chicken recipes                           │
-│                       from 2 folders"                           │
-└─────────────────────────────────────────────────────────────────┘
+│  "how_to"             "Found 5              JSON Response      │
+│  intent               chicken recipes                          │
+│                       from 2 folders"                          │
+└────────────────────────────────────────────────────────────────┘
 ```
 
 ## Embedding Model Comparison
